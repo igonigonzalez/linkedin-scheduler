@@ -7,7 +7,7 @@
 
 const LI_API = "https://api.linkedin.com";
 const LI_OAUTH = "https://www.linkedin.com/oauth/v2";
-const VERSION = process.env.LINKEDIN_VERSION || "202409";
+const VERSION = process.env.LINKEDIN_VERSION || "202601";
 
 function restHeaders(extra: Record<string, string> = {}) {
   return {

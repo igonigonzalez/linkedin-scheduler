@@ -700,7 +700,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
           {/* Brand */}
           <div className="brand">
             <div className="brand-icon">
-              <LinkedInIcon />
+              <span className="brand-in">in</span>
             </div>
             <div className="brand-text">
               <h1>Scheduler</h1>
