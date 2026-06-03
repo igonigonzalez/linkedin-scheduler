@@ -568,6 +568,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
   const [view, setView] = useState<View>("compose");
   const [editor, setEditor] = useState<{ post?: Post | null; prefill?: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
 
   function go(v: View) {
     setView(v);
@@ -581,8 +582,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
   }
 
   // Auto-grow textarea
-  function growTextarea() {
-    const el = textareaRef.current;
+  function growTextarea(el: HTMLTextAreaElement | null) {
     if (!el) return;
     el.style.height = "auto";
     el.style.height = el.scrollHeight + "px";
@@ -661,6 +661,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
       if (!res.ok) throw new Error(json.error || "Fallo al programar");
       setBody(""); setFirstComment(""); setSelected([]); setPublishNow(false); setScheduledAt(defaultSchedule());
       if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+      if (commentRef.current) { commentRef.current.style.height = "auto"; }
       toast("ok", publishNow ? "En cola — saldrá en ≤ 5 min." : "Post programado ✓");
       await refresh();
     } catch (e) {
@@ -847,7 +848,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
                 className="auto-grow"
                 rows={6}
                 value={body}
-                onChange={(e) => { setBody(e.target.value); growTextarea(); }}
+                onChange={(e) => { setBody(e.target.value); growTextarea(e.currentTarget); }}
                 placeholder="¿Qué quieres compartir hoy?"
               />
               <CharBar value={body.length} limit={POST_LIMIT} />
@@ -859,9 +860,11 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
                 <span className="label-hint">opcional · ideal para el enlace</span>
               </label>
               <textarea
+                ref={commentRef}
+                className="auto-grow"
                 rows={2}
                 value={firstComment}
-                onChange={(e) => setFirstComment(e.target.value)}
+                onChange={(e) => { setFirstComment(e.target.value); growTextarea(e.currentTarget); }}
                 placeholder="Se publica justo después del post."
               />
               <CharBar value={firstComment.length} limit={COMMENT_LIMIT} />
