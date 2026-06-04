@@ -100,23 +100,41 @@ export async function GET(req: NextRequest) {
       // Create the post.
       const postUrn = await createPost(accessToken, author, post.body, mediaUrns);
 
-      // First comment (optional).
-      let commentUrn: string | null = null;
-      if (post.first_comment && post.first_comment.trim()) {
-        commentUrn = await createComment(accessToken, author, postUrn, post.first_comment);
-      }
-
+      // Commit the post as published immediately. The first comment below is best-effort:
+      // if it fails we must NOT mark the whole post failed (it's already live) nor lose the
+      // post_urn, and a failed status would let a later cron run re-publish a duplicate.
       await sb
         .from("posts")
         .update({
           status: "published",
           post_urn: postUrn,
-          comment_urn: commentUrn,
           published_at: new Date().toISOString(),
           error: null,
         })
         .eq("id", post.id);
-      results.push({ id: post.id, status: "published", detail: postUrn });
+
+      // First comment (optional, best-effort).
+      let commentUrn: string | null = null;
+      let commentError: string | null = null;
+      if (post.first_comment && post.first_comment.trim()) {
+        try {
+          commentUrn = await createComment(accessToken, author, postUrn, post.first_comment);
+        } catch (e) {
+          commentError = e instanceof Error ? e.message : String(e);
+        }
+      }
+
+      if (commentUrn || commentError) {
+        await sb
+          .from("posts")
+          .update({ comment_urn: commentUrn, error: commentError })
+          .eq("id", post.id);
+      }
+      results.push({
+        id: post.id,
+        status: "published",
+        detail: commentError ? `${postUrn} (comment failed: ${commentError})` : postUrn,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       await sb.from("posts").update({ status: "failed", error: msg }).eq("id", post.id);

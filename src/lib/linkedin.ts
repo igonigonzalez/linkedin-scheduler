@@ -209,10 +209,19 @@ export async function createComment(
   objectUrn: string,
   text: string
 ): Promise<string | null> {
+  // NOTE: the versioned `/rest/socialActions` endpoint is gated behind the Community Management
+  // API (partner access, legal-entity only) and returns 403 ACCESS_DENIED for a plain
+  // `w_member_social` app. The legacy un-versioned `/v2/socialActions` endpoint (NO LinkedIn-Version
+  // header) historically accepts comment creation with just `w_member_social`. If this also 403s,
+  // first comments are not possible without Community Management API approval. // LIVE-TEST
   const encoded = encodeURIComponent(objectUrn);
-  const res = await fetch(`${LI_API}/rest/socialActions/${encoded}/comments`, {
+  const res = await fetch(`${LI_API}/v2/socialActions/${encoded}/comments`, {
     method: "POST",
-    headers: restHeaders({ Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }),
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
     body: JSON.stringify({ actor, object: objectUrn, message: { text } }),
   });
   if (!res.ok) throw new Error(`create comment failed: ${res.status} ${await res.text()}`);
