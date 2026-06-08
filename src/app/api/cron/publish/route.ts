@@ -4,6 +4,7 @@ import {
   createComment,
   createPost,
   refreshAccessToken,
+  uploadDocument,
   uploadImage,
   uploadVideo,
   type MediaUrn,
@@ -92,6 +93,12 @@ export async function GET(req: NextRequest) {
         const ct = fileRes.headers.get("content-type") || "application/octet-stream";
         if (m.type === "video") {
           mediaUrns.push({ type: "video", urn: await uploadVideo(accessToken, author, bytes, ct) });
+        } else if (m.type === "document") {
+          mediaUrns.push({
+            type: "document",
+            urn: await uploadDocument(accessToken, author, bytes, ct),
+            title: m.title ?? undefined,
+          });
         } else {
           mediaUrns.push({ type: "image", urn: await uploadImage(accessToken, author, bytes, ct) });
         }

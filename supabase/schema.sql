@@ -34,12 +34,16 @@ create table if not exists posts (
 create table if not exists media (
   id uuid primary key default gen_random_uuid(),
   post_id uuid references posts(id) on delete cascade,
-  type text not null,                       -- image | video
+  type text not null,                       -- image | video | document
   path text not null,                       -- storage path inside the 'media' bucket
   url text not null,                        -- public URL
+  title text,                               -- document (PDF) title shown on LinkedIn
   sort_order int default 0,
   created_at timestamptz default now()
 );
+
+-- If the media table already exists from a previous setup, add the column:
+alter table media add column if not exists title text;
 
 create index if not exists posts_status_sched_idx on posts(status, scheduled_at);
 create index if not exists media_post_idx on media(post_id);

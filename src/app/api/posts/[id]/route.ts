@@ -26,7 +26,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   return NextResponse.json({ ok: true });
 }
 
-type MediaIn = { type: "image" | "video"; path: string; url: string };
+type MediaIn = { type: "image" | "video" | "document"; path: string; url: string; title?: string };
 
 // Patch: edit text/comment/schedule, replace media, requeue failed.
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -59,6 +59,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (media.length) {
       const rows = media.map((m, i) => ({
         post_id: id, type: m.type, path: m.path, url: m.url, sort_order: i,
+        ...(m.title ? { title: m.title } : {}),
       }));
       const { error: insErr } = await sb.from("media").insert(rows);
       if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });

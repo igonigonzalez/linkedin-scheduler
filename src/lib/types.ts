@@ -3,9 +3,10 @@ export type PostStatus = "scheduled" | "publishing" | "published" | "failed";
 export interface Media {
   id: string;
   post_id: string;
-  type: "image" | "video";
+  type: "image" | "video" | "document";
   path: string;
   url: string;
+  title: string | null;
   sort_order: number;
 }
 

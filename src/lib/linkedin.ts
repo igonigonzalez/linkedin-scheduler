@@ -154,6 +154,35 @@ export async function uploadVideo(
   return videoUrn;
 }
 
+// Documents (PDF, DOC, DOCX, PPT, PPTX). Same initializeUpload -> PUT -> URN flow as images.
+// Works with w_member_social when the owner is the authenticated member. A document goes alone
+// in a post (no mixing with images/videos, one per post) and renders as a swipeable carousel.
+export async function uploadDocument(
+  accessToken: string,
+  owner: string,
+  bytes: ArrayBuffer,
+  contentType: string
+): Promise<string> {
+  const init = await fetch(`${LI_API}/rest/documents?action=initializeUpload`, {
+    method: "POST",
+    headers: restHeaders({ Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }),
+    body: JSON.stringify({ initializeUploadRequest: { owner } }),
+  });
+  if (!init.ok) throw new Error(`document init failed: ${init.status} ${await init.text()}`);
+  const { value } = await init.json();
+  const uploadUrl: string = value.uploadUrl;
+  const documentUrn: string = value.document;
+
+  const put = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": contentType },
+    body: bytes,
+  });
+  if (!put.ok) throw new Error(`document upload failed: ${put.status} ${await put.text()}`);
+  // NOTE: documents process async on LinkedIn's side; large PDFs may need a moment. // LIVE-TEST
+  return documentUrn;
+}
+
 // ---------- Posting ----------
 
 // The Posts API `commentary` field treats these characters as reserved and they MUST be escaped
@@ -162,7 +191,7 @@ export function escapeCommentary(text: string): string {
   return text.replace(/[\\<>#~_|{}@\[\]()*]/g, (c) => `\\${c}`);
 }
 
-export type MediaUrn = { type: "image" | "video"; urn: string };
+export type MediaUrn = { type: "image" | "video" | "document"; urn: string; title?: string };
 
 export async function createPost(
   accessToken: string,
@@ -183,7 +212,10 @@ export async function createPost(
     isReshareDisabledByAuthor: false,
   };
 
-  if (media.length === 1) {
+  if (media.length === 1 && media[0].type === "document") {
+    // Documents (PDF) go alone and require a title — it's the headline shown on the post.
+    body.content = { media: { id: media[0].urn, title: media[0].title || "Documento" } };
+  } else if (media.length === 1) {
     body.content = { media: { id: media[0].urn } };
   } else if (media.length > 1) {
     // Multiple media -> multiImage (images only; LinkedIn does not support multi-video posts).

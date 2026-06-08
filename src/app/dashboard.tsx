@@ -9,7 +9,14 @@ const COMMENT_LIMIT = 1250;
 const TOAST_MS = 4500;
 const BODY_PREVIEW_LINES = 4;
 
-type Selected = { file: File; preview: string; type: "image" | "video" };
+type Selected = { file: File; preview: string; type: "image" | "video" | "document" };
+
+// Classify a picked file. PDFs (and other office docs) become LinkedIn "documents".
+function mediaTypeOf(file: File): "image" | "video" | "document" {
+  const name = file.name.toLowerCase();
+  if (file.type === "application/pdf" || /\.(pdf|docx?|pptx?)$/.test(name)) return "document";
+  return file.type.startsWith("video") ? "video" : "image";
+}
 type Toast = { id: number; kind: "ok" | "err"; text: string };
 
 let toastId = 0;
@@ -125,6 +132,16 @@ function CollapsibleBody({ text }: { text: string }) {
   );
 }
 
+// Placeholder thumbnail for documents (PDFs have no inline preview).
+function DocThumb({ name }: { name?: string | null }) {
+  return (
+    <div className="doc-thumb">
+      <span className="doc-thumb-icon">📄</span>
+      {name && <span className="doc-thumb-name">{name}</span>}
+    </div>
+  );
+}
+
 function DropZone({
   selected,
   onPick,
@@ -157,7 +174,7 @@ function DropZone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*,video/*,application/pdf,.pdf,.doc,.docx,.ppt,.pptx"
         multiple
         style={{ display: "none" }}
         onChange={(e) => onPick(e.target.files)}
@@ -166,14 +183,16 @@ function DropZone({
         <div className="dz-placeholder">
           <span className="dz-icon">📸</span>
           <span className="dz-text">Arrastra o haz clic para añadir media</span>
-          <span className="dz-hint">JPG, PNG, MP4, GIF · Máx. 1 vídeo (sin mezclar)</span>
+          <span className="dz-hint">JPG, PNG, MP4, GIF, PDF · Máx. 1 vídeo o PDF (sin mezclar)</span>
         </div>
       ) : (
         <div className="thumbs" onClick={(e) => e.stopPropagation()}>
           {selected.map((s, i) => (
             <div className="thumb" key={i}>
-              {s.type === "video" ? <video src={s.preview} /> : <img src={s.preview} alt="" />}
-              <span className="tag">{s.type}</span>
+              {s.type === "video" ? <video src={s.preview} />
+                : s.type === "document" ? <DocThumb name={s.file.name} />
+                : <img src={s.preview} alt="" />}
+              <span className="tag">{s.type === "document" ? "PDF" : s.type}</span>
               <button
                 className="x"
                 onClick={(e) => { e.stopPropagation(); onRemove(i); }}
@@ -271,8 +290,10 @@ function QueueCard({
               <div className="thumbs" style={{ marginTop: 10 }}>
                 {p.media.map((m) => (
                   <div className="thumb" key={m.id}>
-                    {m.type === "video" ? <video src={m.url} /> : <img src={m.url} alt="" />}
-                    <span className="tag">{m.type}</span>
+                    {m.type === "video" ? <video src={m.url} />
+                      : m.type === "document" ? <DocThumb name={m.title} />
+                      : <img src={m.url} alt="" />}
+                    <span className="tag">{m.type === "document" ? "PDF" : m.type}</span>
                   </div>
                 ))}
               </div>
@@ -433,13 +454,16 @@ function PostEditorModal({
     if (!files) return;
     const next = [...selected];
     for (const file of Array.from(files)) {
-      const type: "image" | "video" = file.type.startsWith("video") ? "video" : "image";
-      next.push({ file, preview: URL.createObjectURL(file), type });
+      const type = mediaTypeOf(file);
+      next.push({ file, preview: type === "document" ? "" : URL.createObjectURL(file), type });
     }
-    const totalVideos = kept.filter((m) => m.type === "video").length + next.filter((s) => s.type === "video").length;
+    // A video or document must go alone, counting media already kept on the post.
+    const isExclusive = (t: string) => t === "video" || t === "document";
+    const exclusiveCount =
+      kept.filter((m) => isExclusive(m.type)).length + next.filter((s) => isExclusive(s.type)).length;
     const totalCount = kept.length + next.length;
-    if (totalVideos > 1 || (totalVideos === 1 && totalCount > 1)) {
-      toast("err", "Un vídeo va solo: sin otras imágenes y solo uno por post.");
+    if (exclusiveCount > 1 || (exclusiveCount === 1 && totalCount > 1)) {
+      toast("err", "Un vídeo o PDF va solo: uno por post y sin mezclar con imágenes.");
       return;
     }
     setSelected(next);
@@ -451,7 +475,7 @@ function PostEditorModal({
     setBusy(true);
     setBusyLabel("Subiendo…");
     try {
-      const uploaded: { type: "image" | "video"; path: string; url: string }[] = [];
+      const uploaded: { type: "image" | "video" | "document"; path: string; url: string; title?: string }[] = [];
       for (let i = 0; i < selected.length; i++) {
         const s = selected[i];
         setBusyLabel(`Subiendo media ${i + 1}/${selected.length}…`);
@@ -463,9 +487,12 @@ function PostEditorModal({
         if (!signRes.ok) throw new Error(sign.error || "Fallo al subir media");
         const { error } = await supabaseBrowser.storage.from("media").uploadToSignedUrl(sign.path, sign.token, s.file);
         if (error) throw new Error(error.message);
-        uploaded.push({ type: s.type, path: sign.path, url: sign.url });
+        uploaded.push({ type: s.type, path: sign.path, url: sign.url, ...(s.type === "document" ? { title: s.file.name } : {}) });
       }
-      const media = [...kept.map((m) => ({ type: m.type, path: m.path, url: m.url })), ...uploaded];
+      const media = [
+        ...kept.map((m) => ({ type: m.type, path: m.path, url: m.url, ...(m.title ? { title: m.title } : {}) })),
+        ...uploaded,
+      ];
       const payload = {
         body,
         first_comment: firstComment,
@@ -524,8 +551,10 @@ function PostEditorModal({
               <div className="thumbs" style={{ marginBottom: 8 }}>
                 {kept.map((m) => (
                   <div className="thumb" key={m.id}>
-                    {m.type === "video" ? <video src={m.url} /> : <img src={m.url} alt="" />}
-                    <span className="tag">{m.type}</span>
+                    {m.type === "video" ? <video src={m.url} />
+                      : m.type === "document" ? <DocThumb name={m.title} />
+                      : <img src={m.url} alt="" />}
+                    <span className="tag">{m.type === "document" ? "PDF" : m.type}</span>
                     <button className="x" type="button" onClick={() => setKept((k) => k.filter((x) => x.id !== m.id))}>×</button>
                   </div>
                 ))}
@@ -607,12 +636,13 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
     if (!files) return;
     const next = [...selected];
     for (const file of Array.from(files)) {
-      const type: "image" | "video" = file.type.startsWith("video") ? "video" : "image";
-      next.push({ file, preview: URL.createObjectURL(file), type });
+      const type = mediaTypeOf(file);
+      next.push({ file, preview: type === "document" ? "" : URL.createObjectURL(file), type });
     }
-    const videos = next.filter((s) => s.type === "video");
-    if (videos.length > 1 || (videos.length === 1 && next.length > 1)) {
-      toast("err", "Un vídeo va solo: sin otras imágenes y solo uno por post.");
+    // A video or a document must go alone: one per post, never mixed with anything else.
+    const exclusive = next.filter((s) => s.type === "video" || s.type === "document");
+    if (exclusive.length > 1 || (exclusive.length === 1 && next.length > 1)) {
+      toast("err", "Un vídeo o PDF va solo: uno por post y sin mezclar con imágenes.");
       return;
     }
     setSelected(next);
@@ -625,7 +655,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
   }
 
   async function uploadSelected() {
-    const media: { type: "image" | "video"; path: string; url: string }[] = [];
+    const media: { type: "image" | "video" | "document"; path: string; url: string; title?: string }[] = [];
     for (let i = 0; i < selected.length; i++) {
       const s = selected[i];
       setBusyLabel(`Subiendo media ${i + 1}/${selected.length}…`);
@@ -638,7 +668,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
       if (!signRes.ok) throw new Error(sign.error || "Fallo al pedir URL de subida");
       const { error } = await supabaseBrowser.storage.from("media").uploadToSignedUrl(sign.path, sign.token, s.file);
       if (error) throw new Error(error.message);
-      media.push({ type: s.type, path: sign.path, url: sign.url });
+      media.push({ type: s.type, path: sign.path, url: sign.url, ...(s.type === "document" ? { title: s.file.name } : {}) });
     }
     return media;
   }

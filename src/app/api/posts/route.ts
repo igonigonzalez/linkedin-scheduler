@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ posts: data ?? [] });
 }
 
-type MediaIn = { type: "image" | "video"; path: string; url: string };
+type MediaIn = { type: "image" | "video" | "document"; path: string; url: string; title?: string };
 
 // Create a scheduled post for the current session user.
 export async function POST(req: NextRequest) {
@@ -64,6 +64,9 @@ export async function POST(req: NextRequest) {
   if (body.media?.length) {
     const rows = body.media.map((m, i) => ({
       post_id: post.id, type: m.type, path: m.path, url: m.url, sort_order: i,
+      // Only set title when present (documents) so image/video inserts don't reference the
+      // column before the `media.title` migration has been applied.
+      ...(m.title ? { title: m.title } : {}),
     }));
     const { error: mErr } = await sb.from("media").insert(rows);
     if (mErr) return NextResponse.json({ error: mErr.message }, { status: 500 });
