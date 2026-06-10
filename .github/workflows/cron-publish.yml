@@ -1,0 +1,24 @@
+name: Cron publish
+
+# Pinger del scheduler: Vercel Hobby solo permite crons 1x/día, así que GitHub Actions
+# llama al endpoint cada 5 minutos. Requiere el secret CRON_SECRET en el repo
+# (Settings → Secrets and variables → Actions), con el mismo valor que en Vercel.
+#
+# NOTA: GitHub desactiva los schedules si el repo lleva 60 días sin actividad
+# (avisa por email y se reactivan con un clic o con cualquier commit).
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/cron/publish
+        run: |
+          curl --fail-with-body -sS --max-time 100 \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "https://linkedin-scheduler-omega.vercel.app/api/cron/publish"

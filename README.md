@@ -81,17 +81,18 @@ vercel --prod
 
 ## 6) El cron (clave: algo encendido 24/7)
 
-Tu PC apagado NO publica. Necesitas un pinger externo. Opción gratis recomendada:
+Tu PC apagado NO publica. Necesitas un pinger externo. **Configurado: GitHub Actions**
+(`.github/workflows/cron-publish.yml`), que llama al endpoint cada 5 minutos.
 
-**[cron-job.org](https://cron-job.org)** (gratis):
-- New cronjob → URL: `https://TU-APP.vercel.app/api/cron/publish?secret=TU_CRON_SECRET`
-- Schedule: cada 5 minutos.
-- Method: GET.
+Setup (una sola vez): en GitHub → repo → **Settings → Secrets and variables → Actions** →
+New repository secret → nombre `CRON_SECRET`, valor el mismo que en Vercel.
 
 > La resolución de programación = frecuencia del cron. Cada 5 min = los posts salen con ≤5 min de
-> desfase respecto a la hora fijada. Baja el intervalo si quieres más precisión.
+> desfase respecto a la hora fijada (los schedules de GitHub pueden añadir unos minutos extra en
+> horas punta). OJO: GitHub desactiva los schedules tras 60 días sin commits; avisa por email.
 
-Alternativas: Vercel Cron (en Hobby es 1×/día; en Pro permite por minuto), o GitHub Actions con `schedule`.
+Alternativas: cron-job.org (gratis, mismo GET con `?secret=`), o Vercel Cron (en Hobby es 1×/día
+y sin minuto garantizado — está en `vercel.json` solo como respaldo; en Pro permite por minuto).
 
 ---
 
