@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { getSessionAccountId } from "@/lib/session";
+import { signPosts } from "@/lib/mediaAccess";
 import type { Account, Post } from "@/lib/types";
 import Dashboard from "./dashboard";
 
@@ -18,7 +19,7 @@ export default async function Page() {
       sb.from("posts").select("*, media(*)").eq("account_id", accountId).order("scheduled_at", { ascending: false }),
     ]);
     account = (acctRes.data as Account) ?? null;
-    posts = (postsRes.data as Post[]) ?? [];
+    posts = await signPosts(sb, (postsRes.data as Post[]) ?? []);
   }
 
   return <Dashboard account={account} initialPosts={posts} />;

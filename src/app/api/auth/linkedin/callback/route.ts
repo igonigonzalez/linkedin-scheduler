@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForToken, getUserInfo } from "@/lib/linkedin";
 import { supabaseAdmin } from "@/lib/supabase";
-import { SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
+import { SESSION_COOKIE, sessionCookieOptions, signSession } from "@/lib/session";
 
 // OAuth callback: validates state, exchanges code, stores the account + tokens.
 export async function GET(req: NextRequest) {
@@ -40,10 +40,10 @@ export async function GET(req: NextRequest) {
     if (error) throw new Error(error.message);
 
     const res = NextResponse.redirect(new URL("/?connected=1", req.url));
-    res.cookies.set(SESSION_COOKIE, acct.id, sessionCookieOptions());
+    res.cookies.set(SESSION_COOKIE, signSession(acct.id), sessionCookieOptions());
     return res;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "unknown";
-    return NextResponse.redirect(new URL(`/?error=${encodeURIComponent(msg)}`, req.url));
+    console.error("LinkedIn OAuth callback failed", e);
+    return NextResponse.redirect(new URL("/?error=oauth_failed", req.url));
   }
 }

@@ -75,6 +75,20 @@ export async function refreshAccessToken(refreshToken: string) {
   };
 }
 
+export async function revokeToken(token: string) {
+  const body = new URLSearchParams({
+    token,
+    client_id: process.env.LINKEDIN_CLIENT_ID!,
+    client_secret: process.env.LINKEDIN_CLIENT_SECRET!,
+  });
+  const res = await fetch(`${LI_OAUTH}/revoke`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) throw new Error(`revoke failed: ${res.status} ${await res.text()}`);
+}
+
 export async function getUserInfo(accessToken: string) {
   const res = await fetch(`${LI_API}/v2/userinfo`, {
     headers: { Authorization: `Bearer ${accessToken}` },

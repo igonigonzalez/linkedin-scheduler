@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+import { COMMENT_LIMIT, POST_LIMIT } from "@/lib/limits";
 import type { Account, Post } from "@/lib/types";
-
-const POST_LIMIT = 3000;
-const COMMENT_LIMIT = 1250;
 const TOAST_MS = 4500;
 const BODY_PREVIEW_LINES = 4;
 
@@ -472,6 +470,7 @@ function PostEditorModal({
   async function save() {
     if (!body.trim()) { toast("err", "Escribe el texto del post."); return; }
     if (body.length > POST_LIMIT) { toast("err", `El post supera los ${POST_LIMIT} caracteres.`); return; }
+    if (firstComment.length > COMMENT_LIMIT) { toast("err", `El comentario supera los ${COMMENT_LIMIT} caracteres.`); return; }
     setBusy(true);
     setBusyLabel("Subiendo…");
     try {
@@ -498,12 +497,13 @@ function PostEditorModal({
         first_comment: firstComment,
         scheduled_at: new Date(scheduledAt).toISOString(),
         media,
+        ...(post?.status === "failed" ? { status: "scheduled" } : {}),
       };
       setBusyLabel(isEdit ? "Guardando…" : "Programando…");
       const res = isEdit
         ? await fetch(`/api/posts/${post!.id}`, {
             method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...payload, status: "scheduled" }),
+            body: JSON.stringify(payload),
           })
         : await fetch("/api/posts", {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -594,6 +594,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [pendingDel, setPendingDel] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [confirmWipe, setConfirmWipe] = useState(false);
   const [view, setView] = useState<View>("compose");
   const [editor, setEditor] = useState<{ post?: Post | null; prefill?: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -620,7 +621,8 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get("connected")) toast("ok", "Cuenta de LinkedIn conectada.");
-    else if (p.get("error")) toast("err", `Error de conexión: ${p.get("error")}`);
+    else if (p.get("error") === "oauth_state") toast("err", "La conexión caducó. Inténtalo otra vez.");
+    else if (p.get("error")) toast("err", "No se pudo conectar con LinkedIn.");
     if (p.get("connected") || p.get("error")) {
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -676,6 +678,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
   async function submit() {
     if (!body.trim()) { toast("err", "Escribe el texto del post."); return; }
     if (body.length > POST_LIMIT) { toast("err", `El post supera los ${POST_LIMIT} caracteres.`); return; }
+    if (firstComment.length > COMMENT_LIMIT) { toast("err", `El comentario supera los ${COMMENT_LIMIT} caracteres.`); return; }
     setBusy(true);
     setBusyLabel("Procesando…");
     try {
@@ -692,7 +695,11 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
       setBody(""); setFirstComment(""); setSelected([]); setPublishNow(false); setScheduledAt(defaultSchedule());
       if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
       if (commentRef.current) { commentRef.current.style.height = "auto"; }
-      toast("ok", publishNow ? "En cola — saldrá en ≤ 5 min." : "Post programado ✓");
+      if (publishNow && json.publish?.status !== "published") {
+        toast("err", json.publish?.detail || "No se pudo publicar. El post quedó en la cola.");
+      } else {
+        toast("ok", publishNow ? "Publicado ✓" : "Post programado ✓");
+      }
       await refresh();
     } catch (e) {
       toast("err", e instanceof Error ? e.message : "Error desconocido");
@@ -701,13 +708,24 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
     }
   }
 
+  async function wipeAccount() {
+    setConfirmWipe(false);
+    const res = await fetch("/api/account", { method: "DELETE" });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast("err", json.error || "No se pudieron borrar los datos.");
+      return;
+    }
+    window.location.href = "/";
+  }
+
   async function del(id: string) {
     await fetch(`/api/posts/${id}`, { method: "DELETE" });
     setPendingDel(null);
     await refresh();
   }
 
-  const canSubmit = !busy && !!account && body.trim().length > 0 && body.length <= POST_LIMIT;
+  const canSubmit = !busy && !!account && body.trim().length > 0 && body.length <= POST_LIMIT && firstComment.length <= COMMENT_LIMIT;
 
   const scheduledCount = posts.filter(p => p.status === "scheduled").length;
   const publishedCount = posts.filter(p => p.status === "published").length;
@@ -805,9 +823,25 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
                     }
                   </div>
                 </div>
-                <a className="reconnect-btn" href="/api/auth/linkedin">
-                  <RefreshIcon /> Reconectar
-                </a>
+                <div className="account-actions">
+                  <a className="reconnect-btn" href="/api/auth/linkedin">
+                    <RefreshIcon /> Reconectar
+                  </a>
+                  <a className="reconnect-btn" href="/api/auth/logout">
+                    Cerrar sesión
+                  </a>
+                  {confirmWipe ? (
+                    <div className="del-confirm">
+                      <span>¿Borrar cuenta y posts?</span>
+                      <button className="btn-inline danger" onClick={wipeAccount}>Sí</button>
+                      <button className="btn-inline" onClick={() => setConfirmWipe(false)}>No</button>
+                    </div>
+                  ) : (
+                    <button className="reconnect-btn" type="button" onClick={() => setConfirmWipe(true)}>
+                      Borrar mis datos
+                    </button>
+                  )}
+                </div>
               </>
             ) : (
               <div className="connect-cta">
@@ -817,6 +851,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
                 </a>
               </div>
             )}
+            <a className="privacy-link" href="/privacidad">Privacidad</a>
           </div>
         </div>
       </aside>
@@ -853,7 +888,10 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
         {view === "calendar" && (
           <CalendarView
             posts={posts}
-            onChipClick={(p) => setEditor({ post: p })}
+            onChipClick={(p) => {
+              if (p.status === "scheduled" || p.status === "failed") setEditor({ post: p });
+              else toast("err", "Los posts publicados no se pueden volver a programar.");
+            }}
             onCreate={(prefill) => setEditor({ prefill })}
           />
         )}

@@ -27,8 +27,12 @@ create table if not exists posts (
   comment_urn text,
   error text,
   created_at timestamptz default now(),
-  published_at timestamptz
+  published_at timestamptz,
+  updated_at timestamptz default now()
 );
+
+-- Lease timestamp so a crashed publish (status stuck on 'publishing') can be retried.
+alter table posts add column if not exists updated_at timestamptz default now();
 
 -- Media attached to a post (uploaded to Supabase Storage, pushed to LinkedIn at publish time).
 create table if not exists media (
@@ -48,14 +52,16 @@ alter table media add column if not exists title text;
 create index if not exists posts_status_sched_idx on posts(status, scheduled_at);
 create index if not exists media_post_idx on media(post_id);
 
--- Public storage bucket for media (LinkedIn needs to read the bytes; posts are public anyway).
-insert into storage.buckets (id, name, public)
-values ('media', 'media', true)
-on conflict (id) do nothing;
+-- The anon key ships in the browser. With RLS off, that key can read every LinkedIn token.
+-- No policies: anon and authenticated are denied. The server uses the service role, which bypasses RLS.
+alter table linkedin_accounts enable row level security;
+alter table posts enable row level security;
+alter table media enable row level security;
 
--- Allow anonymous clients to upload via signed upload URLs (the signed token authorizes the write).
+-- Private bucket. Publishing downloads the bytes with the service role.
+-- Browser uploads use a signed upload URL (no insert policy required) and previews use signed read URLs.
+insert into storage.buckets (id, name, public)
+values ('media', 'media', false)
+on conflict (id) do update set public = false;
+
 drop policy if exists "media signed uploads" on storage.objects;
-create policy "media signed uploads"
-  on storage.objects for insert
-  to anon, authenticated
-  with check (bucket_id = 'media');
