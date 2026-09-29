@@ -135,24 +135,16 @@ html, body {
 }
 .brand-icon {
   width: 40px; height: 40px;
-  background: var(--gradient-accent);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 12px rgba(10, 102, 194, 0.3);
-  position: relative;
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
   overflow: hidden;
 }
-.brand-icon::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
-  border-radius: inherit;
-}
-.brand-icon svg {
-  width: 20px; height: 20px;
-  fill: #fff;
-  position: relative; z-index: 1;
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 .brand-text h1 {
   font-size: 17px;
@@ -167,6 +159,20 @@ html, body {
   font-weight: 400;
   margin-top: 2px;
   letter-spacing: 0.01em;
+}
+.app-version {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.brand-text h1 .app-version {
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.login-gate-card .app-version {
+  display: block;
+  margin-top: 14px;
 }
 
 /* Nav items in sidebar */
@@ -334,7 +340,48 @@ html, body {
 .legal p, .legal li { color: var(--text-secondary); }
 .legal ul { padding-left: 18px; display: grid; gap: 6px; }
 .legal strong { color: var(--text); font-weight: 600; }
-.connect-cta .btn-connect {
+.login-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 8, 12, 0.28);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.login-gate-card {
+  width: min(420px, 100%);
+  text-align: center;
+  background: rgba(17, 24, 39, 0.92);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius);
+  padding: 36px 28px 28px;
+  box-shadow: var(--shadow-lg);
+}
+.login-gate-mark {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  border-radius: 14px;
+}
+.login-gate-card h2 {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+.login-gate-card p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 22px;
+}
+.login-gate-card .btn-connect { margin: 0 auto; }
+.login-gate-card .privacy-link { display: block; margin-top: 16px; }
+
+.connect-cta .btn-connect,
+.login-gate-card .btn-connect {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 10px 20px;
   background: var(--gradient-accent);
@@ -347,11 +394,13 @@ html, body {
   transition: all 0.2s ease;
   box-shadow: 0 2px 12px rgba(10, 102, 194, 0.3);
 }
-.connect-cta .btn-connect:hover {
+.connect-cta .btn-connect:hover,
+.login-gate-card .btn-connect:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 20px rgba(10, 102, 194, 0.4);
 }
-.connect-cta .btn-connect svg {
+.connect-cta .btn-connect svg,
+.login-gate-card .btn-connect svg {
   width: 16px; height: 16px;
   fill: #fff;
 }
@@ -1337,18 +1386,3 @@ textarea:focus:not(:focus-visible) {
   border-top: 1px solid var(--border);
 }
 
-/* ── Brand lettermark "in" (logo) ── */
-.brand-icon {
-  background: linear-gradient(180deg, #2a93f4 0%, #1577d8 100%);
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.22), 0 2px 12px rgba(20,119,216,0.35);
-}
-.brand-in {
-  position: relative;
-  z-index: 1;
-  font-family: Arial, Helvetica, sans-serif;
-  font-style: italic;
-  font-weight: 800;
-  font-size: 21px;
-  color: #fff;
-  line-height: 1;
-}

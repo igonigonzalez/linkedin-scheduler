@@ -749,10 +749,10 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
           {/* Brand */}
           <div className="brand">
             <div className="brand-icon">
-              <span className="brand-in">in</span>
+              <img src="/logo.svg" alt="" />
             </div>
             <div className="brand-text">
-              <h1>Scheduler</h1>
+              <h1>Scheduler <span className="app-version">v0.1</span></h1>
               <div className="sub">Posts · Comentarios · Media</div>
             </div>
           </div>
@@ -991,6 +991,23 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
           onSaved={refresh}
           toast={toast}
         />
+      )}
+
+      {!account && (
+        <div className="login-gate" role="dialog" aria-modal="true" aria-labelledby="login-gate-title">
+          <div className="login-gate-card">
+            <div className="brand-icon login-gate-mark">
+              <img src="/logo.svg" alt="" />
+            </div>
+            <h2 id="login-gate-title">Conecta tu cuenta</h2>
+            <p>Programa tus posts de LinkedIn, incluido el primer comentario, con imagen, vídeo o PDF.</p>
+            <a className="btn-connect" href="/api/auth/linkedin">
+              <LinkedInIcon /> Conectar LinkedIn
+            </a>
+            <a className="privacy-link" href="/privacidad">Privacidad</a>
+            <span className="app-version">v0.1</span>
+          </div>
+        </div>
       )}
     </div>
   );
