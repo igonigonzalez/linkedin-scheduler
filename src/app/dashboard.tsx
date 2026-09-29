@@ -830,17 +830,6 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
                   <a className="reconnect-btn" href="/api/auth/logout">
                     Cerrar sesión
                   </a>
-                  {confirmWipe ? (
-                    <div className="del-confirm">
-                      <span>¿Borrar cuenta y posts?</span>
-                      <button className="btn-inline danger" onClick={wipeAccount}>Sí</button>
-                      <button className="btn-inline" onClick={() => setConfirmWipe(false)}>No</button>
-                    </div>
-                  ) : (
-                    <button className="reconnect-btn" type="button" onClick={() => setConfirmWipe(true)}>
-                      Borrar mis datos
-                    </button>
-                  )}
                 </div>
               </>
             ) : (
@@ -851,7 +840,20 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
                 </a>
               </div>
             )}
-            <a className="privacy-link" href="/privacidad">Privacidad</a>
+            <div className="sidebar-foot">
+              <a className="privacy-link" href="/privacidad">Privacidad</a>
+              {account && (confirmWipe ? (
+                <div className="del-confirm">
+                  <span>¿Borrar cuenta y posts?</span>
+                  <button className="btn-inline danger" onClick={wipeAccount}>Sí</button>
+                  <button className="btn-inline" onClick={() => setConfirmWipe(false)}>No</button>
+                </div>
+              ) : (
+                <button className="wipe-link" type="button" onClick={() => setConfirmWipe(true)}>
+                  Borrar mis datos
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </aside>
