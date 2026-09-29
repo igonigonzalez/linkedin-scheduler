@@ -752,7 +752,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
               <img src="/logo.svg" alt="" />
             </div>
             <div className="brand-text">
-              <h1>Scheduler <span className="app-version">v0.1</span></h1>
+              <h1>Scheduler {account && <span className="app-version">v0.1</span>}</h1>
               <div className="sub">Posts · Comentarios · Media</div>
             </div>
           </div>
@@ -1005,7 +1005,6 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
               <LinkedInIcon /> Conectar LinkedIn
             </a>
             <a className="privacy-link" href="/privacidad">Privacidad</a>
-            <span className="app-version">v0.1</span>
           </div>
         </div>
       )}

@@ -170,10 +170,6 @@ html, body {
   margin-left: 6px;
   vertical-align: 1px;
 }
-.login-gate-card .app-version {
-  display: block;
-  margin-top: 14px;
-}
 
 /* Nav items in sidebar */
 .sidebar-nav {
