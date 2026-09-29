@@ -338,9 +338,24 @@ html, body {
   cursor: pointer;
 }
 .wipe-link:hover { color: var(--text); }
-.sidebar-foot .del-confirm {
-  margin-left: auto;
-  justify-content: flex-end;
+.wipe-confirm {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.wipe-confirm p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  text-align: right;
+}
+.wipe-confirm-actions {
+  display: flex;
+  gap: 6px;
 }
 .legal {
   max-width: 680px;

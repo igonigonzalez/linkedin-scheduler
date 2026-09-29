@@ -842,18 +842,21 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
             )}
             <div className="sidebar-foot">
               <a className="privacy-link" href="/privacidad">Privacidad</a>
-              {account && (confirmWipe ? (
-                <div className="del-confirm">
-                  <span>¿Borrar cuenta y posts?</span>
-                  <button className="btn-inline danger" onClick={wipeAccount}>Sí</button>
-                  <button className="btn-inline" onClick={() => setConfirmWipe(false)}>No</button>
-                </div>
-              ) : (
+              {account && !confirmWipe && (
                 <button className="wipe-link" type="button" onClick={() => setConfirmWipe(true)}>
                   Borrar mis datos
                 </button>
-              ))}
+              )}
             </div>
+            {account && confirmWipe && (
+              <div className="wipe-confirm" role="group" aria-label="Confirmar borrado">
+                <p>¿Borrar cuenta y posts?</p>
+                <div className="wipe-confirm-actions">
+                  <button className="btn-inline danger" type="button" onClick={wipeAccount}>Sí, borrar</button>
+                  <button className="btn-inline" type="button" onClick={() => setConfirmWipe(false)}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
