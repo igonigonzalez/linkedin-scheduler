@@ -15,6 +15,32 @@ function mediaTypeOf(file: File): "image" | "video" | "document" {
   if (file.type === "application/pdf" || /\.(pdf|docx?|pptx?)$/.test(name)) return "document";
   return file.type.startsWith("video") ? "video" : "image";
 }
+
+async function uploadMediaFile(file: File): Promise<{ path: string; url: string }> {
+  const signRes = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: file.name }),
+  });
+  const sign = await signRes.json();
+  if (!signRes.ok) throw new Error(sign.error || "Fallo al pedir URL de subida");
+  const { error } = await supabaseBrowser.storage.from("media").uploadToSignedUrl(sign.path, sign.token, file);
+  if (error) throw new Error(error.message);
+  const readRes = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: sign.path }),
+  });
+  const read = await readRes.json();
+  if (!readRes.ok) throw new Error(read.error || "No se pudo preparar el archivo");
+  return { path: sign.path, url: read.url };
+}
+
+function openDatePicker(event: React.MouseEvent<HTMLInputElement>) {
+  const input = event.currentTarget;
+  if (input.disabled || typeof input.showPicker !== "function") return;
+  try { input.showPicker(); } catch { /* the picker is already open */ }
+}
 type Toast = { id: number; kind: "ok" | "err"; text: string };
 
 let toastId = 0;
@@ -478,15 +504,8 @@ function PostEditorModal({
       for (let i = 0; i < selected.length; i++) {
         const s = selected[i];
         setBusyLabel(`Subiendo media ${i + 1}/${selected.length}…`);
-        const signRes = await fetch("/api/upload", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename: s.file.name }),
-        });
-        const sign = await signRes.json();
-        if (!signRes.ok) throw new Error(sign.error || "Fallo al subir media");
-        const { error } = await supabaseBrowser.storage.from("media").uploadToSignedUrl(sign.path, sign.token, s.file);
-        if (error) throw new Error(error.message);
-        uploaded.push({ type: s.type, path: sign.path, url: sign.url, ...(s.type === "document" ? { title: s.file.name } : {}) });
+        const uploadedFile = await uploadMediaFile(s.file);
+        uploaded.push({ type: s.type, path: uploadedFile.path, url: uploadedFile.url, ...(s.type === "document" ? { title: s.file.name } : {}) });
       }
       const media = [
         ...kept.map((m) => ({ type: m.type, path: m.path, url: m.url, ...(m.title ? { title: m.title } : {}) })),
@@ -565,7 +584,10 @@ function PostEditorModal({
 
           <div className="field">
             <label>Programar para</label>
-            <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+            <div className="schedule-field">
+              <input className="schedule-input" type="datetime-local" value={scheduledAt} onClick={openDatePicker} onChange={(e) => setScheduledAt(e.target.value)} />
+              <span className="schedule-glyph" aria-hidden="true"><CalendarIcon /></span>
+            </div>
           </div>
         </div>
 
@@ -661,16 +683,8 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
     for (let i = 0; i < selected.length; i++) {
       const s = selected[i];
       setBusyLabel(`Subiendo media ${i + 1}/${selected.length}…`);
-      const signRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: s.file.name }),
-      });
-      const sign = await signRes.json();
-      if (!signRes.ok) throw new Error(sign.error || "Fallo al pedir URL de subida");
-      const { error } = await supabaseBrowser.storage.from("media").uploadToSignedUrl(sign.path, sign.token, s.file);
-      if (error) throw new Error(error.message);
-      media.push({ type: s.type, path: sign.path, url: sign.url, ...(s.type === "document" ? { title: s.file.name } : {}) });
+      const uploadedFile = await uploadMediaFile(s.file);
+      media.push({ type: s.type, path: uploadedFile.path, url: uploadedFile.url, ...(s.type === "document" ? { title: s.file.name } : {}) });
     }
     return media;
   }
@@ -962,13 +976,17 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
                   <span className="toggle-text">Ahora</span>
                 </label>
               </div>
-              <input
-                type="datetime-local"
-                value={scheduledAt}
-                disabled={publishNow}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                style={{ marginTop: 8, opacity: publishNow ? 0.4 : 1, transition: "opacity .2s" }}
-              />
+              <div className="schedule-field" style={{ marginTop: 8, opacity: publishNow ? 0.4 : 1, transition: "opacity .2s" }}>
+                <input
+                  className="schedule-input"
+                  type="datetime-local"
+                  value={scheduledAt}
+                  disabled={publishNow}
+                  onClick={openDatePicker}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                />
+                <span className="schedule-glyph" aria-hidden="true"><CalendarIcon /></span>
+              </div>
             </div>
 
             <div className="submit-row">
