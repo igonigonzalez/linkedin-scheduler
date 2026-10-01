@@ -274,66 +274,105 @@ function QueueCard({
 
       <div className="post-list">
         {posts.map((p) => (
-          <div key={p.id} className={`post-card status-${p.status}`}>
-            <div className="post-meta">
-              <span className={`badge badge-${p.status}`}>
-                {p.status === "scheduled" ? "programado"
-                  : p.status === "publishing" ? "publicando…"
-                  : p.status === "published" ? "publicado"
-                  : "error"}
-              </span>
-              <span className="post-time" title={new Date(p.scheduled_at).toLocaleString("es-ES")}>
-                {relativeTime(p.scheduled_at)}
-              </span>
-              <div className="spacer" />
-              <div className="post-actions">
-                {p.post_urn && (
-                  <a
-                    className="action-link"
-                    href={`https://www.linkedin.com/feed/update/${p.post_urn}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <ExternalIcon /> Ver
-                  </a>
-                )}
-                {(p.status === "scheduled" || p.status === "failed") && pendingDel !== p.id && (
-                  <button className="action-edit" onClick={() => onEdit(p)} title="Editar">✎</button>
-                )}
-                {pendingDel === p.id ? (
-                  <DeleteConfirm onConfirm={() => del(p.id)} onCancel={() => setPendingDel(null)} />
-                ) : (
-                  <button className="action-del" onClick={() => setPendingDel(p.id)} title="Eliminar">✕</button>
-                )}
-              </div>
-            </div>
-
-            <CollapsibleBody text={p.body} />
-
-            {p.media?.length > 0 && (
-              <div className="thumbs" style={{ marginTop: 10 }}>
-                {p.media.map((m) => (
-                  <div className="thumb" key={m.id}>
-                    {m.type === "video" ? <video src={m.url} />
-                      : m.type === "document" ? <DocThumb name={m.title} />
-                      : <img src={m.url} alt="" />}
-                    <span className="tag">{m.type === "document" ? "PDF" : m.type}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {p.first_comment && (
-              <div className="first-comment">
-                <span className="fc-icon">💬</span>
-                <span>{p.first_comment}</span>
-              </div>
-            )}
-
-            {p.error && <div className="post-error">⚠ {p.error}</div>}
-          </div>
+          <QueuePost
+            key={p.id}
+            post={p}
+            pendingDel={pendingDel}
+            setPendingDel={setPendingDel}
+            del={del}
+            onEdit={onEdit}
+          />
         ))}
       </div>
+    </div>
+  );
+}
+
+function QueuePost({
+  post: p,
+  pendingDel,
+  setPendingDel,
+  del,
+  onEdit,
+}: {
+  post: Post;
+  pendingDel: string | null;
+  setPendingDel: (id: string | null) => void;
+  del: (id: string) => void;
+  onEdit: (p: Post) => void;
+}) {
+  const foldable = (p.status === "scheduled" || p.status === "published") && !p.error;
+  const [open, setOpen] = useState(!foldable);
+  const preview = p.body.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
+
+  return (
+    <div className={`post-card status-${p.status}${open ? "" : " is-min"}`}>
+      <div className="post-meta">
+        <span className={`badge badge-${p.status}`}>
+          {p.status === "scheduled" ? "programado"
+            : p.status === "publishing" ? "publicando…"
+            : p.status === "published" ? "publicado"
+            : "error"}
+        </span>
+        <span className="post-time" title={new Date(p.scheduled_at).toLocaleString("es-ES")}>
+          {relativeTime(p.scheduled_at)}
+        </span>
+        <div className="spacer" />
+        <div className="post-actions">
+          {p.post_urn && (
+            <a
+              className="action-link"
+              href={`https://www.linkedin.com/feed/update/${p.post_urn}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalIcon /> Ver
+            </a>
+          )}
+          {(p.status === "scheduled" || p.status === "failed") && pendingDel !== p.id && (
+            <button className="action-edit" onClick={() => onEdit(p)} title="Editar">✎</button>
+          )}
+          {pendingDel === p.id ? (
+            <DeleteConfirm onConfirm={() => del(p.id)} onCancel={() => setPendingDel(null)} />
+          ) : (
+            <button className="action-del" onClick={() => setPendingDel(p.id)} title="Eliminar">✕</button>
+          )}
+        </div>
+      </div>
+
+      {open ? (
+        <>
+          <CollapsibleBody text={p.body} />
+          {p.media?.length > 0 && (
+            <div className="thumbs" style={{ marginTop: 10 }}>
+              {p.media.map((m) => (
+                <div className="thumb" key={m.id}>
+                  {m.type === "video" ? <video src={m.url} />
+                    : m.type === "document" ? <DocThumb name={m.title} />
+                    : <img src={m.url} alt="" />}
+                  <span className="tag">{m.type === "document" ? "PDF" : m.type}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {p.first_comment && (
+            <div className="first-comment">
+              <span className="fc-icon">💬</span>
+              <span>{p.first_comment}</span>
+            </div>
+          )}
+          {foldable && (
+            <button className="expand-btn" type="button" onClick={() => setOpen(false)}>Ver menos ↑</button>
+          )}
+        </>
+      ) : (
+        <button className="post-min" type="button" onClick={() => setOpen(true)}>
+          <span className="post-min-text">{preview || "Sin texto"}</span>
+          <span className="expand-btn">Ver más ↓</span>
+        </button>
+      )}
+
+      {p.error && <div className="post-error">⚠ {p.error}</div>}
     </div>
   );
 }
@@ -604,7 +643,7 @@ function PostEditorModal({
   );
 }
 
-export default function Dashboard({ account, initialPosts }: { account: Account | null; initialPosts: Post[] }) {
+export default function Dashboard({ account, initialPosts, localPreview = false }: { account: Account | null; initialPosts: Post[]; localPreview?: boolean }) {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [body, setBody] = useState("");
   const [firstComment, setFirstComment] = useState("");
@@ -1016,7 +1055,7 @@ export default function Dashboard({ account, initialPosts }: { account: Account 
         />
       )}
 
-      {!account && (
+      {!account && !localPreview && (
         <div className="login-gate" role="dialog" aria-modal="true" aria-labelledby="login-gate-title">
           <div className="login-gate-card">
             <div className="brand-icon login-gate-mark">
